@@ -1,0 +1,197 @@
+<!doctype html>
+
+{% load staticfiles %}
+
+
+<html>
+  <head>
+    <title>Overkode</title>
+
+    <link rel="stylesheet" href="{% static "lib/codemirror.css" %}"> 
+    <script src="{% static "lib/codemirror.js" %}"></script>
+    <script src="{% static "mode/xml/xml.js" %}"></script>
+    <script src="{% static "mode/python/python.js" %}"></script>
+    <link rel="stylesheet" href="{% static "doc/docs.css" %}">
+   
+
+    <style type="text/css">
+      .codemirror {border-top: 1px solid black; border-bottom: 1px solid black;}
+      .activeline {background: #e8f2ff !important;}
+    </style>
+
+  </head>
+  <body>
+    <h1>Overkode: codemirror + django channels 1</h1>
+
+    <form><textarea id="code" name="code">
+</textarea></form>
+<script>
+
+    // django lines
+    // console.log("django LINES")
+
+    var roomName = {{ room_name_json }};
+    var user = getRandomInt(0,999)
+
+    var codemirrorSocket = new WebSocket(
+        'ws://' + window.location.host +
+        '/ws/codemirror/' + roomName + '/');
+
+    codemirrorSocket.onmessage = function(e) {
+        var data = JSON.parse(e.data);
+        // var message = data['message'];
+        console.log(data)
+        var message = "a"
+        if (check_rows(data)) {
+            console.log("El usario que envia y recibe, NO es el mismo")
+            // TODO: Evitar que evento lo envie indiscrimindamente
+            // editor.replaceSelection(message)
+
+
+            // TODO: Hacer que esto escriba de nuevo
+            document.querySelector('#code').value += (message + '\n');
+
+
+        }
+    };
+
+    function check_rows(data) {
+
+        return data
+    };
+
+    function set_message(data) {
+        return data
+    };
+
+    codemirrorSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    function getRandomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
+
+    document.querySelector('#code').focus();
+
+
+
+    // codemirror lines
+    // console.log("CodeMirror LINES");
+    var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+        // mode: "application/xml",
+        mode: "python",
+        lineNumbers: true,
+        lineWrapping: true,
+        matchBrackets: true,
+
+
+        onChange: function (cm, co) {
+            
+            codemirrorSocket.send(JSON.stringify( create_message(cm,co) ));
+            
+        },
+        // onCursorActivity: function() {  
+
+        //     // var messageInputDom = document.querySelector('#code');
+        //     // var message = messageInputDom.value;
+            
+        //     editor.setLineClass(hlLine, null);
+        //     hlLine = editor.setLineClass(editor.getCursor().line, "activeline");
+
+        //     codemirrorSocket.send(JSON.stringify({
+        //         'message': create_message(hlLine),
+        //         'user': user
+        //     }));
+
+        //     // console.log(editor)
+        // }
+        
+
+    });
+
+    function create_message(cm, co){
+        
+        // console.log(co)
+        var from_line = co.from.line
+        var from_char = co.from.ch
+        var text = co.text
+        var size = String(text).length
+        var to_line = cm.getCursor().line+1
+        var to_char = co.to.ch
+
+        cm.setLineClass(hlLine, null);
+        hlLine = cm.setLineClass(cm.getCursor().line, "activeline");
+
+        var action = "Add"
+        if (from_char < to_char) {
+            action = "Del"
+            var temp = from_char
+            from_char = to_char
+            to_char = temp
+        } else if (from_char == to_char) {
+            to_char = from_char + size
+        }
+
+        if(!hlLine.text){
+            text = hlLine.text
+        }
+
+
+        // console.log(action+" char[" + size + "]: " + text);
+        // console.log("on line (" + from_line +  ") from: " + from_char + " to: " + to_char);
+        // console.log(get_lines(from_line, to_line));
+        
+
+        msg = {}
+
+        creation = {}
+        creation['timestamp'] = "now"
+        creation['user'] = user
+        creation['action'] = action
+
+        rcv = {}
+        rcv['id'] = user
+        rcv['username'] = "Anonymous"
+        // rcv['port'] = 
+        
+        msg['creation'] = creation
+        msg['receivers'] = {}
+        msg['receivers'][user] = rcv
+        msg['content'] = get_lines(from_line, to_line)
+
+        // console.log(msg)
+
+        return msg
+        // return hlLine.text
+    };
+
+    var hlLine = editor.setLineClass(0, "activeline");
+
+    function get_lines(start, end){
+        lines = {}
+        for (var i = start; i < end; i++) {
+            lines[i] = [0]
+            lines[i].push(editor.getLineHandle(i).text)
+        }
+        return lines
+    }
+
+
+</script>
+
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
