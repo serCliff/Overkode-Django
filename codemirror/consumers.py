@@ -27,8 +27,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         await self.accept()
-        self.rooms = set()
-        self.users = set()
 
 
     async def disconnect(self, close_code):
@@ -43,7 +41,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         message = json.loads(text_data)
 
-        print(message)
 
         if not self.user_id:
             self.user_id = str(message['creation']['user'])
@@ -66,14 +63,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def chat_message(self, event):
         message = event['message']
 
+        new_receiver = dict()
+        new_receiver['id'] = self.user_id        
+        new_receiver['username'] = self.username
+        new_receiver['port'] = self.port
+        message['sent_by'] = new_receiver
 
         print("\nchat_message ("+str(self.user_id)+")")
         print(event)
 
-        if not self.user_id in message['receivers']:
+
+        # if not self.user_id in message['receivers']:
             # Send message to WebSocket
-            message = self.add_receiver(message)
-            await self.send(text_data=json.dumps(message))
+        # message = self.add_receiver(message)
+        await self.send(text_data=json.dumps(message))
+
+
 
 
     def add_receiver(self, message):

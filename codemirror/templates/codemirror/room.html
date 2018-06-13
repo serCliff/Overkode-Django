@@ -39,30 +39,92 @@
 
     codemirrorSocket.onmessage = function(e) {
         var data = JSON.parse(e.data);
-        // var message = data['message'];
-        console.log(data)
-        var message = "a"
-        if (check_rows(data)) {
-            console.log("El usario que envia y recibe, NO es el mismo")
-            // TODO: Evitar que evento lo envie indiscrimindamente
-            // editor.replaceSelection(message)
+        set_data(data)
+
+        // if (set_data(data)) {
+        //     set_message(data)
+        // }
+    };
 
 
-            // TODO: Hacer que esto escriba de nuevo
-            document.querySelector('#code').value += (message + '\n');
+    function set_data(data) {
+        
+        console.log("check_receivers " + user)
+        content = data['content']
+
+        for (var row in content){
+
+            from = {}
+            from['line'] = row
+            from['ch'] = content[row][0]
+
+            to = {}
+            to['line'] = row
+            to['ch'] = content[row][1].length
 
 
+            existing = editor.getRange(from, to)
+            
+            console.log("Comparamos")
+            console.log(row+": "+existing+" == "+content[row][1])
+
+            line = editor.getLine(row)
+            
+            console.log(line)
+
+            // TODO: Hacer que escriba bien los saltos de linea
+            if (existing != content[row][1] || line == "") {
+                if (line == "") {
+                    if (row == 0){
+                        editor.setLine(row, line+"\n")
+                    }
+                    else{
+                        editor.setLine((row-1), content[row-1][1]+"\n")
+                    }
+
+                } else {
+                    editor.replaceRange(content[row][1], from, to)
+                }
+            }
+            
         }
+
     };
 
-    function check_rows(data) {
+    // function set_message(data) {
+    //     console.log("Setting message CONTENT")
 
-        return data
-    };
+    //     content = data['content']
 
-    function set_message(data) {
-        return data
-    };
+    //     console.log(content)
+    //     for (var row in content){
+
+    //         from = {}
+    //         from['line'] = row
+    //         from['ch'] = content[row][0]
+
+    //         to = {}
+    //         to['line'] = row
+    //         to['ch'] = content[row][1].length
+
+    //         // line = editor.getLineHandle(row)
+    //         // console.log(line)
+
+    //         // if (line == undefined) {
+    //         //     editor.setLine(row, "")    
+    //         // } else{
+    //         // }
+    //         if(to['ch'] > 0){
+    //             editor.replaceRange(content[row][1], from, to)
+    //         }
+
+    //         // console.log("Escribimos")
+    //         // console.log(row+": "+content[row][1])
+    //     }
+        
+    //     return true;
+
+    // };
 
     codemirrorSocket.onclose = function(e) {
         console.error('Chat socket closed unexpectedly');
@@ -85,28 +147,11 @@
         lineWrapping: true,
         matchBrackets: true,
 
-
         onChange: function (cm, co) {
             
             codemirrorSocket.send(JSON.stringify( create_message(cm,co) ));
             
         },
-        // onCursorActivity: function() {  
-
-        //     // var messageInputDom = document.querySelector('#code');
-        //     // var message = messageInputDom.value;
-            
-        //     editor.setLineClass(hlLine, null);
-        //     hlLine = editor.setLineClass(editor.getCursor().line, "activeline");
-
-        //     codemirrorSocket.send(JSON.stringify({
-        //         'message': create_message(hlLine),
-        //         'user': user
-        //     }));
-
-        //     // console.log(editor)
-        // }
-        
 
     });
 
@@ -174,6 +219,7 @@
             lines[i] = [0]
             lines[i].push(editor.getLineHandle(i).text)
         }
+        console.log(lines)
         return lines
     }
 
