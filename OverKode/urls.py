@@ -21,7 +21,8 @@ from django.conf.urls import include, url
 urlpatterns = [
     # path('polls/', include('polls.urls')),
     # path('admin/', admin.site.urls),
-    url(r'^codemirror/', include('codemirror.urls')),
+    url(r'^ace/', include('ace.urls')),
+    # url(r'^codemirror/', include('codemirror.urls')),
     # url(r'^chat/', include('chat.urls')),
     url(r'^admin/', admin.site.urls),
 ]

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+{% load staticfiles %}
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Editor</title>
+  <style type="text/css" media="screen">
+    body {
+        overflow: hidden;
+    }
+
+    #editor {
+        position: absolute;
+        margin: 0px;
+        top: 80px;
+        bottom: 0;
+        left: 80px;
+        right: 80px;
+    }
+
+    #header{
+        position: absolute;
+        left: 80px;
+    }
+  </style>
+</head>
+<body>
+
+    <div>
+        <h1 id="header">Overkode: ace + django channels</h1>
+        <pre id="editor"></pre>
+    </div>
+
+    <script src="{% static "src-noconflict/ace.js" %}" type="text/javascript" charset="utf-8"></script>
+    <script src="{% static "aux_functions.js" %}" type="text/javascript" charset="utf-8"></script>
+    <script src="{% static "editor_options.js" %}" type="text/javascript" charset="utf-8"></script>
+    <script src="{% static "semaphore.js" %}" type="text/javascript" charset="utf-8"></script>
+    
+
+    <script id="django_code">
+
+        var roomName = {{ room_name_json }};
+        var user = getRandomInt(0,9999);
+
+        var sem = true;
+        var doc = editor.session.doc;
+
+
+        var aceSocket = new WebSocket(
+            'ws://' + window.location.host +
+            '/ws/ace/' + roomName + '/');
+
+        // Receive message from WebSocket
+        aceSocket.onmessage = function(e) {
+            var data = JSON.parse(e.data);
+
+            if (data['creation']['action'] == "connecting") {
+                connecting_message()
+            } else {
+                edition_message(data)
+            }  
+        };
+
+        aceSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly');
+        };
+
+        // Connecting message
+        function connecting_message(){
+            aceSocket.send(JSON.stringify( {'creation': {'timestamp': 'now', 'user': self.user, 'action': 'connecting'}} ));
+        }
+
+
+        //Manage received message that change the content of the editor
+        function edition_message(data) {
+            var delta = data['content'];
+
+            var action = delta['action']
+            var start = delta['start']
+            var end = delta['end']
+            var lines = delta['lines']    
+
+            // console.log(delta)
+
+            
+            console.log("MENSAJE RECIBIDO: "+action+": "+lines)
+            // debugger;
+
+            if (action == "insert") {
+                var text = ""
+                for (var row in lines){
+                    text += lines[row]
+                    if(row != (lines.length-1)){
+                        text+="\n"
+                    }
+                };
+
+                var s = {
+
+                }
+
+                
+                // doc.insert(doc.indexToPosition(start['column'], start['row']), text);
+
+                current_text = editor.session.getTextRange(new ace.Range( start['row'], start['column'], end['row'], end['column'] ))
+                console.log("*"+current_text+"*")
+                console.log("*"+text+"*")
+                if ( current_text != text  ) {
+                    console.log("Son diferentes")
+                    editor.session.replace(
+                        new ace.Range( start['row'], start['column'], end['row'], end['column'] ), 
+                        text);
+                } else {
+                    console.log("Son IGUALES")
+                    console.log(doc.getLines(start['row'], end['row']))
+                    console.log(delta.real_lines)
+
+                    if (doc.getLines(start['row'], end['row'])[0] != delta.real_lines[0]) {
+                        doc.insert(doc.indexToPosition(start['column'], start['row']), text);
+                        // editor.session.replace(
+                        //     new ace.Range( start['row'], 0, end['row'], delta.real_lines[0].length ), 
+                        //     delta.real_lines[0]);
+                    }
+
+
+                }
+
+            } else {
+                editor.session.replace(
+                    new ace.Range( start['row'], start['column'], end['row'], end['column'] ), 
+                    "");
+            }
+            debugger;
+        }
+        
+
+    </script>
+
+
+    <script id="editor_code">
+
+
+        editor.insert("<!DOCTYPE html>"+"\n"+
+                        "<html>"+"\n"+
+                        "<body>"+"\n"+
+                        ""+"\n"+
+                        "<h1>Documento: "+roomName+"</h1>"+"\n"+
+                        "<p>Usuario: "+user+"</p>"+"\n"+
+                        ""+"\n"+
+                        "</body>"+"\n"+
+                        "</html>");
+
+        // editor.session.replace(new ace.Range(0, 0, 1, 1), "new text");
+
+
+        // editor.insert("Something cool");
+       
+        // a = editor.session.getTextRange(new ace.Range(0, 0, 1, 1));
+        // a= editor.selection.getCursor();
+        // editor.gotoLine((a['row']+1));
+        // editor.insert("Something cool");
+        // console.log(editor.session.setAnnotations(['paste']) )
+
+        //Send messages to websocket
+        editor.session.on('change', function(delta) {
+            // delta.start, delta.end, delta.lines, delta.action
+            // console.log(delta.action)
+            // editor.session.setAnnotations(['paste'])
+            cont = true
+            var action = delta['action']
+            var start = delta['start']
+            var end = delta['end']
+            var lines = delta['lines']  
+
+
+            real_lines = doc.getLines(start['row'], end['row'])
+            delta['real_lines'] = real_lines
+
+            console.log("Sending message")
+            aceSocket.send(JSON.stringify( create_message( delta ) ));
+            
+            // CRITICAL ZONE
+            // do{
+            //     console.log("Iteration")
+            //     console.log(" --> "+action+": "+lines)
+
+            //     cont = false
+            //     if (sem) {
+            //         sem = false
+            //         // debugger;
+            //         cont = true
+            //     } else {
+            //         cont = false
+            //         // debugger;
+            //     }
+
+            // } while (!cont);
+            console.log("DONE")
+            console.log("------------------------------------")
+            sem = true
+        });
+
+        
+
+
+    </script>
+
+    
+
+</body>
+</html>

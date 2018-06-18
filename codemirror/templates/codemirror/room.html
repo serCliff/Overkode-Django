@@ -39,92 +39,15 @@
 
     codemirrorSocket.onmessage = function(e) {
         var data = JSON.parse(e.data);
-        set_data(data)
+        rows = check_data(data)
 
-        // if (set_data(data)) {
-        //     set_message(data)
-        // }
-    };
-
-
-    function set_data(data) {
+        // if (rows.length > 0) {
+        //     set_message(data, rows)
+        // };
+        console.log("------------------------------")
+        console.log("")
         
-        console.log("check_receivers " + user)
-        content = data['content']
-
-        for (var row in content){
-
-            from = {}
-            from['line'] = row
-            from['ch'] = content[row][0]
-
-            to = {}
-            to['line'] = row
-            to['ch'] = content[row][1].length
-
-
-            existing = editor.getRange(from, to)
-            
-            console.log("Comparamos")
-            console.log(row+": "+existing+" == "+content[row][1])
-
-            line = editor.getLine(row)
-            
-            console.log(line)
-
-            // TODO: Hacer que escriba bien los saltos de linea
-            if (existing != content[row][1] || line == "") {
-                if (line == "") {
-                    if (row == 0){
-                        editor.setLine(row, line+"\n")
-                    }
-                    else{
-                        editor.setLine((row-1), content[row-1][1]+"\n")
-                    }
-
-                } else {
-                    editor.replaceRange(content[row][1], from, to)
-                }
-            }
-            
-        }
-
     };
-
-    // function set_message(data) {
-    //     console.log("Setting message CONTENT")
-
-    //     content = data['content']
-
-    //     console.log(content)
-    //     for (var row in content){
-
-    //         from = {}
-    //         from['line'] = row
-    //         from['ch'] = content[row][0]
-
-    //         to = {}
-    //         to['line'] = row
-    //         to['ch'] = content[row][1].length
-
-    //         // line = editor.getLineHandle(row)
-    //         // console.log(line)
-
-    //         // if (line == undefined) {
-    //         //     editor.setLine(row, "")    
-    //         // } else{
-    //         // }
-    //         if(to['ch'] > 0){
-    //             editor.replaceRange(content[row][1], from, to)
-    //         }
-
-    //         // console.log("Escribimos")
-    //         // console.log(row+": "+content[row][1])
-    //     }
-        
-    //     return true;
-
-    // };
 
     codemirrorSocket.onclose = function(e) {
         console.error('Chat socket closed unexpectedly');
@@ -148,21 +71,140 @@
         matchBrackets: true,
 
         onChange: function (cm, co) {
-            
             codemirrorSocket.send(JSON.stringify( create_message(cm,co) ));
-            
         },
 
     });
 
+
+
+
+
+// CHECK DATA
+    function check_data(data) {
+
+        // console.log("check_receivers " + user)
+        content = data['content']
+        action = data['creation']['action']
+        console.log("Comparamos");
+
+        console.log(content)
+        // editor.replaceRange( content['text'] , content['from'], content['to'])
+
+        set_lines = []
+        for (var row in content){
+
+            from = {}
+            from['line'] = row
+            from['ch'] = content[row]['ch']
+
+            to = {}
+            to['line'] = row
+            to['ch'] = content[row]['text'].length
+
+
+            existing = editor.getRange(from, to)
+            
+
+            // console.log(row+": "+existing+" == "+content[row]['text'])
+            line = editor.getLine(row)
+            // console.log(row + " - "+line)
+
+            if (line == undefined) {
+                set_lines.push(row)
+            } else if (existing != content[row]['text']) {
+                set_lines.push(row)
+            }
+
+        }
+
+        return set_lines
+
+    };
+
+
+
+// SET MESSAGE
+    function set_message(data, rows) {
+
+        console.log("Setting message CONTENT")
+
+        content = data['content']
+
+        console.log(content)
+        // console.log(rows)
+        // console.log(rows.length)
+        
+
+
+        for (var index in rows){
+            row = rows[index]
+
+            console.log("["+index+"] row: "+row + " text: "+content[row]['text'])
+            // console.log(editor.getLine(row))
+            // TODO: Solucionar problema entre lineas del array y del editor
+
+            from = {}
+            from['line'] = row
+            from['ch'] = content[row]['ch']
+
+            to = {}
+            to['line'] = row
+            to['ch'] = content[row]['ch']
+
+            row_text = content[row]['text']
+            
+            line = editor.getLine(row)
+            if (line == undefined || row_text == "") {
+
+                last_line = editor.getLine(row-1)
+                editor.setLine(row-1, last_line+"\n")
+
+                if (row_text != "") {
+                    // console.log(row_text)
+                    editor.replaceRange( row_text , from, to)
+                };
+                
+            } else  {
+                editor.replaceRange( row_text , from, to)
+            }
+        };
+    };
+
+
+
+
+// GET LINES
+    function get_lines(start, end){
+
+        // console.log("get lines")
+        lines = {}
+        for (var i = start; i <= end; i++) {
+            lines[i] = {}
+            lines[i]['ch'] = 0
+            lines[i]['text'] = editor.getLine(i)
+
+            // lines[i].push(editor.getLineHandle(i).text)
+        }
+        // console.log(lines)
+        return lines
+    }
+
+
+
+
+
+
+// CREATE MESSAGE
     function create_message(cm, co){
         
-        // console.log(co)
+        console.log(co)
+
         var from_line = co.from.line
         var from_char = co.from.ch
         var text = co.text
         var size = String(text).length
-        var to_line = cm.getCursor().line+1
+        var to_line = cm.getCursor().line
         var to_char = co.to.ch
 
         cm.setLineClass(hlLine, null);
@@ -178,15 +220,17 @@
             to_char = from_char + size
         }
 
-        if(!hlLine.text){
-            text = hlLine.text
-        }
+        if (co.text.length > 1 && co.text[0] == co.text[1] && co.text[0] == ""){
+            console.log("SALTO DE LÍNEA")
+            console.log(co.text)
+            action = "return"
+        } 
 
 
-        // console.log(action+" char[" + size + "]: " + text);
-        // console.log("on line (" + from_line +  ") from: " + from_char + " to: " + to_char);
-        // console.log(get_lines(from_line, to_line));
-        
+
+        console.log(action+" char[" + size + "]: " + text);
+        console.log("on line (" + from_line +  ") from: " + from_char + " to: " + to_char);
+
 
         msg = {}
 
@@ -203,25 +247,18 @@
         msg['creation'] = creation
         msg['receivers'] = {}
         msg['receivers'][user] = rcv
+
         msg['content'] = get_lines(from_line, to_line)
+        // msg['content'] = co
 
         // console.log(msg)
 
         return msg
-        // return hlLine.text
     };
 
     var hlLine = editor.setLineClass(0, "activeline");
 
-    function get_lines(start, end){
-        lines = {}
-        for (var i = start; i < end; i++) {
-            lines[i] = [0]
-            lines[i].push(editor.getLineHandle(i).text)
-        }
-        console.log(lines)
-        return lines
-    }
+    
 
 
 </script>
