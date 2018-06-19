@@ -14,7 +14,7 @@
     #editor {
         position: absolute;
         margin: 0px;
-        top: 80px;
+        top: 120px;
         bottom: 0;
         left: 80px;
         right: 80px;
@@ -24,19 +24,32 @@
         position: absolute;
         left: 80px;
     }
+
+    #room{
+        position: absolute;
+        top: 50px;
+        left: 80px;
+    }
+    
+    #user{
+        position: absolute;
+        top: 70px;
+        left: 80px;
+    }
   </style>
 </head>
 <body>
 
     <div>
         <h1 id="header">Overkode: ace + django channels</h1>
+        <p id="room">Room: {{ room_name_json }}</p>
+        <p id="user">User: {{ user }}</p>
         <pre id="editor"></pre>
     </div>
 
     <script src="{% static "src-noconflict/ace.js" %}" type="text/javascript" charset="utf-8"></script>
     <script src="{% static "aux_functions.js" %}" type="text/javascript" charset="utf-8"></script>
     <script src="{% static "editor_options.js" %}" type="text/javascript" charset="utf-8"></script>
-    <script src="{% static "semaphore.js" %}" type="text/javascript" charset="utf-8"></script>
     
 
     <script id="django_code">
@@ -86,7 +99,6 @@
 
             
             console.log("MENSAJE RECIBIDO: "+action+": "+lines)
-            // debugger;
 
             if (action == "insert") {
                 var text = ""
@@ -105,35 +117,35 @@
                 // doc.insert(doc.indexToPosition(start['column'], start['row']), text);
 
                 current_text = editor.session.getTextRange(new ace.Range( start['row'], start['column'], end['row'], end['column'] ))
-                console.log("*"+current_text+"*")
-                console.log("*"+text+"*")
+                // console.log("*"+current_text+"*")
+                // console.log("*"+text+"*")
+                
                 if ( current_text != text  ) {
                     console.log("Son diferentes")
-                    editor.session.replace(
-                        new ace.Range( start['row'], start['column'], end['row'], end['column'] ), 
-                        text);
+                    doc.insert(doc.indexToPosition(start['column'], start['row']), text);
+
                 } else {
                     console.log("Son IGUALES")
                     console.log(doc.getLines(start['row'], end['row']))
                     console.log(delta.real_lines)
+                    console.log(text)
 
-                    if (doc.getLines(start['row'], end['row'])[0] != delta.real_lines[0]) {
+                    // TODO: Depurar aqui, ahora sólo tiene en cuenta la primera linea
+                    if (doc.getLines(start['row'], end['row'])[0] != text) {
+                        
                         doc.insert(doc.indexToPosition(start['column'], start['row']), text);
-                        // editor.session.replace(
-                        //     new ace.Range( start['row'], 0, end['row'], delta.real_lines[0].length ), 
-                        //     delta.real_lines[0]);
-                    }
+                    };
 
 
-                }
+                };
 
             } else {
-                editor.session.replace(
-                    new ace.Range( start['row'], start['column'], end['row'], end['column'] ), 
-                    "");
-            }
-            debugger;
-        }
+                
+                editor.session.remove(
+                    new ace.Range( start['row'], start['column'], end['row'], end['column'] ));
+            }; 
+
+        };
         
 
     </script>
@@ -142,26 +154,16 @@
     <script id="editor_code">
 
 
-        editor.insert("<!DOCTYPE html>"+"\n"+
-                        "<html>"+"\n"+
-                        "<body>"+"\n"+
-                        ""+"\n"+
-                        "<h1>Documento: "+roomName+"</h1>"+"\n"+
-                        "<p>Usuario: "+user+"</p>"+"\n"+
-                        ""+"\n"+
-                        "</body>"+"\n"+
-                        "</html>");
+        // editor.insert("<!DOCTYPE html>"+"\n"+
+        //                 "<html>"+"\n"+
+        //                 "<body>"+"\n"+
+        //                 ""+"\n"+
+        //                 "<h1>Documento: "+roomName+"</h1>"+"\n"+
+        //                 "<p>Usuario: "+user+"</p>"+"\n"+
+        //                 ""+"\n"+
+        //                 "</body>"+"\n"+
+        //                 "</html>");
 
-        // editor.session.replace(new ace.Range(0, 0, 1, 1), "new text");
-
-
-        // editor.insert("Something cool");
-       
-        // a = editor.session.getTextRange(new ace.Range(0, 0, 1, 1));
-        // a= editor.selection.getCursor();
-        // editor.gotoLine((a['row']+1));
-        // editor.insert("Something cool");
-        // console.log(editor.session.setAnnotations(['paste']) )
 
         //Send messages to websocket
         editor.session.on('change', function(delta) {
@@ -173,32 +175,31 @@
             var start = delta['start']
             var end = delta['end']
             var lines = delta['lines']  
-
+            delta['id'] = 0
 
             real_lines = doc.getLines(start['row'], end['row'])
             delta['real_lines'] = real_lines
 
-            console.log("Sending message")
-            aceSocket.send(JSON.stringify( create_message( delta ) ));
             
             // CRITICAL ZONE
-            // do{
-            //     console.log("Iteration")
-            //     console.log(" --> "+action+": "+lines)
+            do{
+                // console.log("Iteration")
+                // console.log(" --> "+action+": "+lines)
 
-            //     cont = false
-            //     if (sem) {
-            //         sem = false
-            //         // debugger;
-            //         cont = true
-            //     } else {
-            //         cont = false
-            //         // debugger;
-            //     }
+                cont = false
+                if (sem) {
+                    sem = false
+                    // console.log("Sending message")
 
-            // } while (!cont);
-            console.log("DONE")
-            console.log("------------------------------------")
+                    aceSocket.send(JSON.stringify( create_message( delta ) ));
+                    cont = true
+                } else {
+                    cont = false
+                }
+
+            } while (!cont);
+            // console.log("DONE")
+            // console.log("------------------------------------")
             sem = true
         });
 

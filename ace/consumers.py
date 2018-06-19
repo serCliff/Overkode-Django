@@ -56,24 +56,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
             print(message)
             
             content = hash(str(message['content']))
-            # import pdb; pdb.set_trace()
             
             # Si nunca he recibido un mensaje igual, lo pongo a false y lo envio esperando replica
             # Si lo he recibido:
             # - Si está a false, lo pongo a True, ES LA RÉPLICA
             # - Si esta a true, se ha generado un mensaje idéntico, lo pongo a false y lo envio esperando replica
-
             if not content in self.received_messages:
-                print("Mensaje nuevo")
+                print("** Mensaje nuevo **")
                 self.received_messages[content] = False
                 await self.group_send_m(message)
             else:
                 if self.received_messages[content]:
-                    print("Mensaje repetido, envio de nuevo")
+                    print("** Mensaje repetido, envio de nuevo **")
                     self.received_messages[content] = False
                     await self.group_send_m(message)
                 else:
-                    print("Replica recibida")
+                    print("** Replica recibida **")
                     self.received_messages[content] = True
 
 
@@ -94,14 +92,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # import pdb; pdb.set_trace()
 
         if not content in self.received_messages:
-            print("Mensaje nuevo")
+            print("** Mensaje nuevo **")
             self.received_messages[content] = False
         else:
             if self.received_messages[content]:
-                print("Mensaje repetido, envio de nuevo")
+                print("** Mensaje repetido, envio de nuevo **")
                 self.received_messages[content] = False
             else:
-                print("Replica recibida")
+                print("** Replica recibida **")
                 self.received_messages[content] = True
 
         # Discard our changes
@@ -119,6 +117,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message': message,
             }
         )
+    
+
+            
+
+            
 
 
 class User:
