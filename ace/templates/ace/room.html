@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 {% load staticfiles %}
 
-<html lang="en">
+
+
+<!-- <html lang="en"> -->
+
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' 'self'; script-src * 'unsafe-inline' 'unsafe-eval' blob:; img-src * 'self' data: blob:;"/>
+
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -73,7 +78,7 @@
                 connecting_message()
             } else {
                 edition_message(data)
-            }  
+            };
         };
 
         aceSocket.onclose = function(e) {
@@ -82,77 +87,98 @@
 
         // Connecting message
         function connecting_message(){
-            aceSocket.send(JSON.stringify( {'creation': {'timestamp': 'now', 'user': self.user, 'action': 'connecting'}} ));
-        }
+            aceSocket.send(
+                JSON.stringify( {'creation': {'timestamp': 'now', 'user': self.user, 'action': 'connecting'}} ));
+        };
+        
 
-
-        //Manage received message that change the content of the editor
-        function edition_message(data) {
-            var delta = data['content'];
-
-            var action = delta['action']
+        function insert_text(delta){
+            //Insert the text on the editor
             var start = delta['start']
             var end = delta['end']
-            var lines = delta['lines']    
+            var lines = delta['lines']  
 
-            // console.log(delta)
-
-            
-            console.log("MENSAJE RECIBIDO: "+action+": "+lines)
-
-            if (action == "insert") {
-                var text = ""
-                for (var row in lines){
-                    text += lines[row]
-                    if(row != (lines.length-1)){
-                        text+="\n"
-                    }
-                };
-
-                var s = {
-
+            var text = ""
+            for (var row in lines){
+                text += lines[row]
+                if(row != (lines.length-1)){
+                    text+="\n"
                 }
-
-                
-                // doc.insert(doc.indexToPosition(start['column'], start['row']), text);
-
-                current_text = editor.session.getTextRange(new ace.Range( start['row'], start['column'], end['row'], end['column'] ))
-                // console.log("*"+current_text+"*")
-                // console.log("*"+text+"*")
-                
-                if ( current_text != text  ) {
-                    console.log("Son diferentes")
-                    doc.insert(doc.indexToPosition(start['column'], start['row']), text);
-
-                } else {
-                    console.log("Son IGUALES")
-                    console.log(doc.getLines(start['row'], end['row']))
-                    console.log(delta.real_lines)
-                    console.log(text)
-
-                    // TODO: Depurar aqui, ahora sólo tiene en cuenta la primera linea
-                    if (doc.getLines(start['row'], end['row'])[0] != text) {
-                        
-                        doc.insert(doc.indexToPosition(start['column'], start['row']), text);
-                    };
-
-
-                };
+            };
+            current_text = editor.session.getTextRange(new ace.Range( start['row'], start['column'], end['row'], end['column'] ))
+            
+            if ( current_text != text  ) {
+                //Update the editor inserting new text on his specific place
+                doc.insert(doc.indexToPosition(start['column'], start['row']), text);
 
             } else {
-                
-                editor.session.remove(
+                //If the text exists but can be an update or insert the same characters on the same place
+                if (doc.getLines(start['row'], end['row'])[0] != text) {  
+                    doc.insert(doc.indexToPosition(start['column'], start['row']), text);
+                };
+            };
+        };
+
+
+        function remove_text(delta){
+            var start = delta['start']
+            var end = delta['end']
+            editor.session.remove(
                     new ace.Range( start['row'], start['column'], end['row'], end['column'] ));
-            }; 
+        };
+
+
+
+
+        function edition_message(data) {
+            //Manage received message that change the content of the editor
+            // console.log(data)
+            var delta = data['content'];
+            var action = data['creation']['action'];
+
+
+            
+            // console.log("MENSAJE RECIBIDO: "+action)
+
+            if (action == "insert") {
+                insert_text(delta)
+            
+            } else if (action == "fetch_code") {
+                text = editor.session.doc.getAllLines()
+
+                
+                final_row = text.length-1
+                final_column = text[final_row].length
+                start = {'row': 0, 'column': 0}
+                end = {'row': final_row, 'column': final_column}
+
+                var delta = {}
+                delta['start'] = start
+                delta['end'] = end
+                delta['action'] = "reply_code"
+                delta['lines'] = text 
+                delta['id'] = 0
+
+                real_lines = doc.getLines(start['row'], end['row'])
+                delta['real_lines'] = real_lines
+
+                // console.log(delta)
+                aceSocket.send(JSON.stringify( create_message( delta ) ));
+                
+            } else {
+                remove_text(delta)
+            };  
 
         };
         
+
 
     </script>
 
 
     <script id="editor_code">
 
+        editor.session.setMode("ace/mode/python");
 
         // editor.insert("<!DOCTYPE html>"+"\n"+
         //                 "<html>"+"\n"+
@@ -168,7 +194,7 @@
         //Send messages to websocket
         editor.session.on('change', function(delta) {
             // delta.start, delta.end, delta.lines, delta.action
-            // console.log(delta.action)
+            // console.log(delta)
             // editor.session.setAnnotations(['paste'])
             cont = true
             var action = delta['action']

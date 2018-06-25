@@ -9,17 +9,8 @@ function create_message(delta){
     creation['timestamp'] = "now"
     creation['user'] = user
     creation['action'] = delta['action']
-
-    // rcv = {}
-    // rcv['id'] = user
-    // rcv['username'] = "Anonymous"
-    // rcv['port'] = 
-    
-    // msg['receivers'] = {}
-    // msg['receivers'][user] = rcv
     
     msg['creation'] = creation
-
     msg['content'] = delta
 
     return msg

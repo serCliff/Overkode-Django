@@ -1,7 +1,9 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 # from random import randint
- 
+
+
+
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -14,12 +16,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.username = self.scope['user'] #TODO: Recoger bien el username
         self.username = "Anonymous"
         self.received_messages = dict()
+        self.reply_code = False
 
-        print("\n\n-------------------------------------------------------------------")
-        print("-----------------------  ROOM -- "+str(self.room_name)+"  -----------------------------")
-        print("-------------------------------------------------------------------")
-        print("New User: "+str(self.username))
-        print("Connecting...\n")
 
         # print("\nFAKE LOG")
         # Join room group
@@ -28,10 +26,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
+        print("\n\n-------------------------------------------------------------------")
+        print("-----------------------  ROOM -- "+str(self.room_name)+"  -----------------------------")
+        print("-------------------------------------------------------------------")
         await self.accept()
+        print("New User: "+str(self.username))
         await self.send(text_data=json.dumps({'creation': {'timestamp': 'now', 'action': 'connecting'}}))
 
 
+    
     async def disconnect(self, close_code):
         # Leave room group
         # print("Bye\n")
@@ -43,69 +46,75 @@ class ChatConsumer(AsyncWebsocketConsumer):
     # Receive message from WebSocket
     async def receive(self, text_data):
         message = json.loads(text_data)
+        action = message['creation']['action']
+        
+        message['sent_by'] = self.user_id
 
-        if message['creation']['action'] == "connecting":
+        if 'content' in message:
+            content = hash(str(message['content']))
+
+        if action == "connecting":
+            #TODO: Saber si eres el primero
             self.user_id = str(message['creation']['user'])
-            # Enviar mensaje de comunicación para recibir datos de la página
-        else:
-            message['sent_by'] = self.user_id
+            print("Conected ["+self.user_id+"]\n")
+            # Initial text request
+            await self.group_send_m({'sent_by': self.user_id, 'creation': {'action': 'fetch_code'}})
+        
+        elif action == "reply_code":
+            print("\n------------------------------------------")
+            print("["+self.user_id+"] Reply code: ")
+            print(message)
+            self.reply_code = True
+            await self.group_send_m(message)
 
-            
+
+        else:
             print("\n------------------------------------------")
             print("["+self.user_id+"] Sending message:")
             print(message)
             
-            content = hash(str(message['content']))
-            
-            # Si nunca he recibido un mensaje igual, lo pongo a false y lo envio esperando replica
-            # Si lo he recibido:
-            # - Si está a false, lo pongo a True, ES LA RÉPLICA
-            # - Si esta a true, se ha generado un mensaje idéntico, lo pongo a false y lo envio esperando replica
-            if not content in self.received_messages:
-                print("** Mensaje nuevo **")
-                self.received_messages[content] = False
+            if not self.check_received(content):
                 await self.group_send_m(message)
-            else:
-                if self.received_messages[content]:
-                    print("** Mensaje repetido, envio de nuevo **")
-                    self.received_messages[content] = False
-                    await self.group_send_m(message)
-                else:
-                    print("** Replica recibida **")
-                    self.received_messages[content] = True
-
-
-
-
-            
-
             
 
 
     # Receive message from room group
     async def chat_message(self, event):
         message = event['message']
-        content = hash(str(message['content']))
+        action = message['creation']['action']
 
         print("\n["+self.user_id+"] Received message by: ("+str(message['sent_by'])+") Action: "+str(message['creation']['action']).upper())
         print(event)
-        # import pdb; pdb.set_trace()
+        
+        if 'content' in message:
+            content = hash(str(message['content']))
 
-        if not content in self.received_messages:
-            print("** Mensaje nuevo **")
-            self.received_messages[content] = False
-        else:
-            if self.received_messages[content]:
-                print("** Mensaje repetido, envio de nuevo **")
-                self.received_messages[content] = False
+        if action == "fetch_code":
+            #Request the text to his editor
+            if self.user_id != message['sent_by']:
+                # Only me need the initial code reception
+                print("Envio mensaje FETCH CODE al editor para recoger contenido inicial")
+                print("Espero reply para enviar a todos")
+                await self.send(text_data=json.dumps(message))
             else:
-                print("** Replica recibida **")
-                self.received_messages[content] = True
+                print("Yo no envio mesaje a mi editor porque soy el que lo está pidiendo")
 
-        # Discard our changes
-        if self.user_id != message['sent_by'] and not self.received_messages[content]: 
-            #Send message to our editor
-            await self.send(text_data=json.dumps(message))
+
+        elif action == "reply_code":
+            if self.user_id != message['sent_by'] and not self.reply_code:
+                print("Recibo contenido inicial")
+                self.reply_code = True
+                message['creation']['action'] = "insert"
+                message['content']['action'] = "insert"
+
+                self.check_received(hash(str(message['content'])))
+                await self.send(text_data=json.dumps(message))
+        else:
+            # Discard our changes
+            if self.user_id != message['sent_by'] and not self.check_received(content): 
+                #Send message to our editor
+                print("Envio mensaje de actualizacion a mi editor")
+                await self.send(text_data=json.dumps(message))
         
 
     async def group_send_m(self, message):
@@ -119,17 +128,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
     
 
+    def check_received(self, content):
+        # Si nunca he recibido un mensaje igual, lo pongo a false y lo envio esperando replica
+        # Si lo he recibido:
+        # - Si está a false, lo pongo a True, ES LA RÉPLICA
+        # - Si esta a true, se ha generado un mensaje idéntico, lo pongo a false y lo envio esperando replica
+        
+
+        if not content in self.received_messages:
+            print("** Mensaje nuevo **")
+            self.received_messages[content] = False
+        else:
+            if self.received_messages[content]:
+                print("** Mensaje repetido, envio de nuevo **")
+                self.received_messages[content] = False
+            else:
+                print("** Replica recibida **")
+                self.received_messages[content] = True
+
+        return self.received_messages[content]
             
-
-            
-
-
-class User:
-
-    def __init__(self, id, username, port):
-        self.id = id
-        self.username = username
-        self.port = port
-
-
 
