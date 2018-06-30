@@ -1,6 +1,5 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
-# from random import randint
 
 
 

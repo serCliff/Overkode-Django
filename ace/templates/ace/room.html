@@ -73,9 +73,12 @@
         // Receive message from WebSocket
         aceSocket.onmessage = function(e) {
             var data = JSON.parse(e.data);
+            var action = data['creation']['action']
 
-            if (data['creation']['action'] == "connecting") {
+            if (action == "connecting") {
                 connecting_message()
+            } else if (action == "fetch_code") {
+                fetch_code()
             } else {
                 edition_message(data)
             };
@@ -128,6 +131,29 @@
         };
 
 
+        function fetch_code(){
+            
+            text = editor.session.doc.getAllLines()
+                
+            final_row = text.length-1
+            final_column = text[final_row].length
+            start = {'row': 0, 'column': 0}
+            end = {'row': final_row, 'column': final_column}
+
+            var delta = {}
+            delta['start'] = start
+            delta['end'] = end
+            delta['action'] = "reply_code"
+            delta['lines'] = text 
+            delta['id'] = 0
+
+            real_lines = doc.getLines(start['row'], end['row'])
+            delta['real_lines'] = real_lines
+
+            // console.log(delta)
+            aceSocket.send(JSON.stringify( create_message( delta ) ));
+
+        }
 
 
         function edition_message(data) {
@@ -135,36 +161,12 @@
             // console.log(data)
             var delta = data['content'];
             var action = data['creation']['action'];
-
-
             
             // console.log("MENSAJE RECIBIDO: "+action)
 
             if (action == "insert") {
                 insert_text(delta)
             
-            } else if (action == "fetch_code") {
-                text = editor.session.doc.getAllLines()
-
-                
-                final_row = text.length-1
-                final_column = text[final_row].length
-                start = {'row': 0, 'column': 0}
-                end = {'row': final_row, 'column': final_column}
-
-                var delta = {}
-                delta['start'] = start
-                delta['end'] = end
-                delta['action'] = "reply_code"
-                delta['lines'] = text 
-                delta['id'] = 0
-
-                real_lines = doc.getLines(start['row'], end['row'])
-                delta['real_lines'] = real_lines
-
-                // console.log(delta)
-                aceSocket.send(JSON.stringify( create_message( delta ) ));
-                
             } else {
                 remove_text(delta)
             };  
