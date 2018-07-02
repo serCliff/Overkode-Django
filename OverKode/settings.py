@@ -32,10 +32,7 @@ ALLOWED_HOSTS = ['212.128.135.52', '127.0.0.1']
 
 INSTALLED_APPS = [
     'channels',
-    # 'chat',
-    # 'codemirror',
     'ace',
-    'polls.apps.PollsConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

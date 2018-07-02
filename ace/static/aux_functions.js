@@ -6,7 +6,7 @@ function create_message(delta){
     msg = {}
 
     creation = {}
-    creation['timestamp'] = "now"
+    creation['timestamp'] = Date.now();
     creation['user'] = user
     creation['action'] = delta['action']
     

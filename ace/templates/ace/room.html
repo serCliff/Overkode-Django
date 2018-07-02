@@ -91,7 +91,7 @@
         // Connecting message
         function connecting_message(){
             aceSocket.send(
-                JSON.stringify( {'creation': {'timestamp': 'now', 'user': self.user, 'action': 'connecting'}} ));
+                JSON.stringify( {'creation': {'timestamp': Date.now(), 'user': self.user, 'action': 'connecting'}} ));
         };
         
 
@@ -182,20 +182,8 @@
 
         editor.session.setMode("ace/mode/python");
 
-        // editor.insert("<!DOCTYPE html>"+"\n"+
-        //                 "<html>"+"\n"+
-        //                 "<body>"+"\n"+
-        //                 ""+"\n"+
-        //                 "<h1>Documento: "+roomName+"</h1>"+"\n"+
-        //                 "<p>Usuario: "+user+"</p>"+"\n"+
-        //                 ""+"\n"+
-        //                 "</body>"+"\n"+
-        //                 "</html>");
-
-
         //Send messages to websocket
         editor.session.on('change', function(delta) {
-            // delta.start, delta.end, delta.lines, delta.action
             // console.log(delta)
             // editor.session.setAnnotations(['paste'])
             cont = true

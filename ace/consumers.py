@@ -1,6 +1,6 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
-
+import datetime
 
 
 
@@ -30,7 +30,8 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
         print("-------------------------------------------------------------------")
         await self.accept()
         print("New User: "+str(self.username))
-        await self.send(text_data=json.dumps({'creation': {'timestamp': 'now', 'action': 'connecting'}}))
+        now = str(datetime.datetime.now().time())
+        await self.send(text_data=json.dumps({'creation': {'timestamp': now, 'action': 'connecting'}}))
 
 
     
@@ -56,6 +57,7 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
             #TODO: Saber si eres el primero
             self.user_id = str(message['creation']['user'])
             print("Conected ["+self.user_id+"]\n")
+            print(message)
             # Initial text request
             await self.group_send_m({'sent_by': self.user_id, 'creation': {'action': 'fetch_code'}})
         
@@ -78,7 +80,7 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
 
 
     # Receive message from room group
-    async def chat_message(self, event):
+    async def room_message(self, event):
         message = event['message']
         action = message['creation']['action']
 
@@ -121,7 +123,7 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             self.room_group_name,
             {
-                'type': 'chat_message',
+                'type': 'room_message',
                 'message': message,
             }
         )
