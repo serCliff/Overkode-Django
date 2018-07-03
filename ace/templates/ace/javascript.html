@@ -173,7 +173,8 @@
 
     <script id="editor_code">
 
-        editor.session.setMode("ace/mode/html");
+        editor.session.setMode("ace/mode/javascript");
+        editor.setTheme("ace/theme/solarized_light");
 
         //Send messages to websocket
         editor.session.on('change', function(delta) {

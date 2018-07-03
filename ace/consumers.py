@@ -8,18 +8,19 @@ import datetime
 class OverkodeConsumer(AsyncWebsocketConsumer):
     
     async def connect(self):
+        """
+            This function is thrown with the connection of WebSocket,
+            Mainly create the socket and make the first connecting message.
+        """
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = 'chat_%s' % self.room_name
         self.user_id = False
         self.port = self.scope['client'][1]
-        self.username = self.scope['user'] #TODO: Recoger bien el username
+        self.username = self.scope['user']
         self.username = "Anonymous"
         self.received_messages = dict()
         self.reply_code = False
 
-
-        # print("\nFAKE LOG")
-        # Join room group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
@@ -29,6 +30,7 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
         print("-----------------------  ROOM -- "+str(self.room_name)+"  -----------------------------")
         print("-------------------------------------------------------------------")
         await self.accept()
+
         print("New User: "+str(self.username))
         now = str(datetime.datetime.now().time())
         await self.send(text_data=json.dumps({'creation': {'timestamp': now, 'action': 'connecting'}}))
@@ -36,15 +38,22 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
 
     
     async def disconnect(self, close_code):
-        # Leave room group
-        # print("Bye\n")
+        """
+            Function that manage the disconnection of the WebSocket.
+            Throw a discard of group rooms that was added.
+        """
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
-    # Receive message from WebSocket
     async def receive(self, text_data):
+        """
+            Manager of the messages received to the WebSocket.
+            Args:
+                text_data: Data received from the WebSocket.
+        """
+        # Receive message from WebSocket
         message = json.loads(text_data)
         action = message['creation']['action']
         
@@ -54,7 +63,6 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
             content = hash(str(message['content']))
 
         if action == "connecting":
-            #TODO: Saber si eres el primero
             self.user_id = str(message['creation']['user'])
             print("Conected ["+self.user_id+"]\n")
             print(message)
@@ -79,8 +87,8 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
             
 
 
-    # Receive message from room group
     async def room_message(self, event):
+        # Receive message from room group
         message = event['message']
         action = message['creation']['action']
 
@@ -130,12 +138,7 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
     
 
     def check_received(self, content):
-        # Si nunca he recibido un mensaje igual, lo pongo a false y lo envio esperando replica
-        # Si lo he recibido:
-        # - Si está a false, lo pongo a True, ES LA RÉPLICA
-        # - Si esta a true, se ha generado un mensaje idéntico, lo pongo a false y lo envio esperando replica
-        
-
+        # Algorith to make the treatement of replies
         if not content in self.received_messages:
             print("** Mensaje nuevo **")
             self.received_messages[content] = False
