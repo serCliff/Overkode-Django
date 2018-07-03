@@ -106,7 +106,7 @@ class OverkodeConsumer(AsyncWebsocketConsumer):
                 print("Espero reply para enviar a todos")
                 await self.send(text_data=json.dumps(message))
             else:
-                print("Yo no envio mesaje a mi editor porque soy el que lo está pidiendo")
+                print("Yo no envio mesaje a mi editor porque soy el que lo estA pidiendo")
 
 
         elif action == "reply_code":
