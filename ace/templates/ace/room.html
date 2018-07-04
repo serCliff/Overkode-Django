@@ -50,11 +50,19 @@
     </div>
 
     <script src="{% static "src-noconflict/ace.js" %}" type="text/javascript" charset="utf-8"></script>
-    <script src="{% static "aux_functions.js" %}" type="text/javascript" charset="utf-8"></script>
-    <script src="{% static "editor_options.js" %}" type="text/javascript" charset="utf-8"></script>
     
+    <script id="editor_options" type="text/javascript">
+        
+        var editor = ace.edit("editor");
+        editor.session.setMode("ace/mode/c_cpp");
+        editor.setTheme("ace/theme/twilight");
+    </script>
 
-    <script id="django_code">
+    <script id="django_code" type="text/javascript">
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        };
 
         var roomName = {{ room_name_json }};
         var user = getRandomInt(0,9999);
@@ -89,6 +97,20 @@
         function connecting_message(){
             aceSocket.send(
                 JSON.stringify( {'creation': {'timestamp': Date.now(), 'user': self.user, 'action': 'connecting'}} ));
+        };
+
+        function create_message(delta){
+            msg = {}
+
+            creation = {}
+            creation['timestamp'] = Date.now();
+            creation['user'] = user
+            creation['action'] = delta['action']
+            
+            msg['creation'] = creation
+            msg['content'] = delta
+
+            return msg
         };
         
 
@@ -171,9 +193,7 @@
     </script>
 
 
-    <script id="editor_code">
-
-        editor.session.setMode("ace/mode/html");
+    <script id="editor_code" type="text/javascript">
 
         //Send messages to websocket
         editor.session.on('change', function(delta) {
